@@ -2257,30 +2257,44 @@ bool Cmd_GetHitExtendedFlag_Execute(COMMAND_ARGS)
 
 bool Cmd_RemoveAllPerks_Execute(COMMAND_ARGS)
 {
-	UInt32 forTeammates = 0;
-	if (IS_ACTOR(thisObj) && ExtractArgsEx(EXTRACT_ARGS_EX, &forTeammates))
-	{
-		Actor *actor = (Actor*)thisObj;
-		if (actor->IsPlayer())
-		{
-			auto perkIter = forTeammates ? g_thePlayer->perkRanksTM.Head() : g_thePlayer->perkRanksPC.Head();
-			do
-			{
-				if (PerkRank *perkRank = perkIter->data)
-					actor->RemovePerk(perkRank->perk, forTeammates);
-			}
-			while (perkIter = perkIter->next);
-		}
-		else if (s_patchInstallState.NPCPerks)
-			if (NPCPerksInfo *perksInfo = actor->extraDataList.perksInfo)
-			{
-				for (auto perkIter = perksInfo->perkRanks.Begin(); perkIter; ++perkIter)
-					RemovePerkNPCHook(actor, 0, perkIter.Key(), 0);
-				actor->extraDataList.perksInfo = nullptr;
-				s_NPCPerksInfoMap->Erase(actor->refID);
-			}
-	}
-	return true;
+    UInt32 forTeammates = 0;
+    if (IS_ACTOR(thisObj) && ExtractArgsEx(EXTRACT_ARGS_EX, &forTeammates))
+    {
+        Actor *actor = (Actor*)thisObj;
+        if (actor->IsPlayer())
+        {
+            NVSEArrayVar *perkArray = GetAllPerks(actor, forTeammates, scriptObj, 0);
+            if (perkArray)
+            {
+                UInt32 size = g_arrayInterface->GetArraySize(perkArray);
+                for (UInt32 i = 0; i < size; ++i)
+                {
+                    NVSEArrayElement element;
+                    if (g_arrayInterface->GetElement(perkArray, i, element))
+                    {
+                        if (element.GetType() == NVSEArrayElement::kType_Form)
+                        {
+                            BGSPerk *perk = (BGSPerk*)element.form;
+                            actor->RemovePerk(perk, forTeammates);
+                        }
+                    }
+                }
+            }
+        }
+        else if (s_patchInstallState.NPCPerks)
+        {
+            if (NPCPerksInfo *perksInfo = actor->extraDataList.perksInfo)
+            {
+                for (auto perkIter = perksInfo->perkRanks.Begin(); perkIter; ++perkIter)
+                {
+                    RemovePerkNPCHook(actor, 0, perkIter.Key(), 0);
+                }
+                actor->extraDataList.perksInfo = nullptr;
+                s_NPCPerksInfoMap->Erase(actor->refID);
+            }
+        }
+    }
+    return true;
 }
 
 bool Cmd_GetActorMovementFlags_Execute(COMMAND_ARGS)
